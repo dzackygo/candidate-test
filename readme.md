@@ -1,155 +1,246 @@
-# Feature Test Assignment
+# CLT Toolbox Feature Test
 
-## 1. Instructions
+Laravel 11 implementation for the CLT Toolbox feature test.
 
-- Clone or fork this repository.
-- Create a new branch: `{user}-assignment`.
-- Invite **@ikhsan017** and **@dhiaaziz** as collaborators.
-- Follow the setup instructions provided in the repository before running the project.
+The application manages this hierarchy:
 
-## 2. Feature Requirements
+```text
+Supplier -> CLT Layups -> CLT Layers
+```
 
-### Core Features (Main Criteria)
+It includes CRUD flows, supplier JSON import/export, conflict detection, and manual conflict resolution.
 
-- [ ] CRUD Suppliers
-- [ ] CRUD CLT Layups (nested under Supplier)
-- [ ] CRUD CLT Layers (nested under Layup)
+## Implemented Features
 
-The structure should properly reflect the hierarchy:
-Supplier → Layups → Layers
+- CRUD Suppliers
+- CRUD CLT Layups nested under Supplier
+- CRUD CLT Layers nested under Layup
+- Export Supplier data as JSON, including all related layups and layers
+- Import Supplier JSON data into an existing supplier
+- Conflict detection when an incoming layer has the same `layer_order` but different `thickness`, `width`, or `angle`
+- Manual conflict resolution page with Existing Version and Incoming Version side by side
+- Service pattern with interface binding via `AppServiceProvider`
+- Form Request validation
+- Policies/Gates for authorization
+- Route Model Binding
+- Unit and Feature tests
 
-### Data Model (ERD)
+## Requirements
 
-Below is the Entity Relationship Diagram (ERD) representing the data structure:
+Make sure these are installed:
+
+- PHP `^8.2`
+- Composer
+- Node.js and npm
+- SQLite PHP extension enabled
+
+This project uses SQLite by default, so no MySQL/PostgreSQL setup is required for local review.
+
+## Installation
+
+Clone the repository and checkout the assignment branch:
+
+```bash
+git clone https://github.com/dzackygo/candidate-test.git
+cd candidate-test
+git checkout dzacky-assignment
+```
+
+Install PHP dependencies:
+
+```bash
+composer install
+```
+
+Install frontend dependencies:
+
+```bash
+npm install
+```
+
+Create the environment file:
+
+```bash
+cp .env.example .env
+```
+
+On Windows PowerShell, use:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Generate the application key:
+
+```bash
+php artisan key:generate
+```
+
+Create the SQLite database file:
+
+```bash
+touch database/database.sqlite
+```
+
+On Windows PowerShell, use:
+
+```powershell
+New-Item database/database.sqlite -ItemType File -Force
+```
+
+Make sure the database connection in `.env` is:
+
+```env
+DB_CONNECTION=sqlite
+```
+
+Then run migrations and seed the demo user:
+
+```bash
+php artisan migrate --seed
+```
+
+Build frontend assets:
+
+```bash
+npm run build
+```
+
+Run the application:
+
+```bash
+php artisan serve
+```
+
+Open the app:
+
+```text
+http://127.0.0.1:8000
+```
+
+## Demo Login
+
+Use this account after running the seeder:
+
+```text
+Email: test@example.com
+Password: password
+```
+
+The password is provided by `database/factories/UserFactory.php`.
+
+## Suggested Review Flow
+
+1. Login using the demo account.
+2. Open `Suppliers`.
+3. Create a supplier.
+4. Open the supplier detail page.
+5. Create a CLT layup under that supplier.
+6. Create CLT layers under that layup.
+7. Edit and delete sample supplier, layup, and layer records.
+8. Export the supplier JSON.
+9. Import a JSON file into the supplier.
+10. Import conflicting data and resolve it from the conflict resolution page.
+
+## JSON Import Example
+
+Use this structure for a normal import:
+
+```json
+{
+  "supplier": {
+    "name": "Demo Supplier"
+  },
+  "layups": [
+    {
+      "name": "Wall Layup A",
+      "layers": [
+        {
+          "layer_order": 1,
+          "thickness": 20,
+          "width": 1200,
+          "angle": 0
+        },
+        {
+          "layer_order": 2,
+          "thickness": 35,
+          "width": 1200,
+          "angle": 90
+        }
+      ]
+    }
+  ]
+}
+```
+
+To trigger a conflict, import data with the same layup `name` and the same `layer_order`, but change one or more of:
+
+```text
+thickness
+width
+angle
+```
+
+Example conflict payload:
+
+```json
+{
+  "supplier": {
+    "name": "Demo Supplier"
+  },
+  "layups": [
+    {
+      "name": "Wall Layup A",
+      "layers": [
+        {
+          "layer_order": 1,
+          "thickness": 30,
+          "width": 1300,
+          "angle": 90
+        }
+      ]
+    }
+  ]
+}
+```
+
+## Running Tests
+
+Run all tests:
+
+```bash
+php artisan test
+```
+
+Run Laravel Pint:
+
+```bash
+vendor/bin/pint --test
+```
+
+On Windows PowerShell:
+
+```powershell
+vendor\bin\pint --test
+```
+
+Build assets:
+
+```bash
+npm run build
+```
+
+## Main Files
+
+- Models: `app/Models/Supplier.php`, `app/Models/CltLayup.php`, `app/Models/CltLayer.php`
+- Controllers: `app/Http/Controllers/SupplierController.php`, `CltLayupController.php`, `CltLayerController.php`
+- Import/export controllers: `SupplierImportExportController.php`, `SupplierImportConflictController.php`
+- Services: `app/Services/SupplierExportService.php`, `SupplierImportService.php`, `SupplierImportConflictService.php`
+- Form Requests: `app/Http/Requests`
+- Policies: `app/Policies`
+- Feature tests: `tests/Feature`
+- Unit tests: `tests/Unit`
+
+## ERD
 
 ![ERD](./erd-new.png)
-
-### Import / Export (Main Criteria)
-
-- [ ] **Export by Supplier**
-    - Must include: Supplier + all related Layups + all related Layers
-
-- [ ] **Import by Supplier**
-    - Must create and/or update Layups and Layers under the specified supplier
-
-Format is flexible (JSON / CSV / Excel, etc.). JSON format is completely acceptable.
-
-## 3. Feature: Conflict Resolution (Bonus – Important)
-
-During import, conflicts may occur when incoming data differs from existing records.
-
-### Conflict Detection Rules
-
-#### 1. Layup-Level Conflict
-
-If a layup with the same `name` already exists under the same supplier:
-
-- Treat it as the same layup candidate.
-- Do **not** automatically create a new layup.
-
-#### 2. Layer-Level Conflict
-
-If:
-
-- A layer with the same `layer_order` exists within that layup,
-- **AND** one or more fields differ (`thickness`, `width`, `angle`),
-
-→ This must be treated as a conflict.
-
----
-
-### Required Conflict Handling
-
-You must implement a clearly defined conflict resolution strategy.
-
-At minimum, support **one** of the following:
-
-- **Overwrite Existing**  
-  (Incoming data replaces current data)
-
-- **Skip Conflict**  
-  (Keep current data, ignore incoming change)
-
-- **Duplicate Layup**  
-  (Create a new layup with a suffix such as `name (imported)`)
-
-- **Reject Entire Import**  
-  (Abort and return a detailed conflict report)
-
----
-
-### Advanced Conflict Resolution (UI-Based – Bonus)
-
-For additional bonus points, implement a **manual conflict resolution interface** similar to GitHub merge conflict resolution.
-
-Expected behavior:
-
-- Display **Existing Version (Current Data)** and  
-  **Incoming Version (Imported Data)** side-by-side
-- Highlight field-level differences
-- Allow the user to choose:
-    - ✅ Keep Existing
-    - ✅ Accept Incoming
-- Support resolving conflicts one-by-one
-- Provide navigation (e.g., “1 of 3 discrepancies”)
-
-This may be implemented as:
-
-- A modal, or
-- A dedicated conflict resolution page.
-
-## 4. Design Reference
-
-A design reference is available in Figma:
-
-[Figma Design File](https://www.figma.com/design/odWJ887r00aslmSFPIHMCx/SPEC-Toolbox---Feature-Test?node-id=11001-35&t=XUggOaUUi9p8jGFG-1)
-
-> The design is for reference only. Exact visual matching is not required.
-
-## 5. Evaluation Criteria
-
-### Main Evaluation
-
-- Correct implementation of the required features
-
-### Bonus Evaluation
-
-**Architecture & Design Patterns**
-
-- Use Repository and/or Service pattern
-- Bind interfaces via a Service Provider
-
-**Laravel Best Practices**
-
-- Form Request validation
-- Policies or Gates for authorization
-- Proper use of Route Model Binding
-- Clean, maintainable code following Laravel conventions
-
-**Automated Testing**
-
-- Unit tests (validation, services, repositories)
-- Feature tests (CRUD and import/export flows)
-
-**Additional Improvements**
-
-- Any meaningful enhancements will be considered positively
-
-## 6. Submission
-
-The deadline will be provided via email.  
-Please ensure submission within the specified timeframe.
-
-
-## 7. Demo
-
-Include one of the following with your submission:
-
-- A demo video (recommended), or
-- A live project link
-
-Ensure the demo clearly showcases:
-
-- CRUD functionality
-- Import / Export feature
-- Conflict resolution behavior
